@@ -1,0 +1,93 @@
+spring:
+  application:
+    name: loopins-gateway
+
+  cloud:
+    gateway:
+      # Global CORS — allows your frontend to call the gateway
+      globalcors:
+        corsConfigurations:
+          '[/**]':
+            allowedOrigins: ${ALLOWED_ORIGINS:http://localhost:3000}
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - PATCH
+              - OPTIONS
+            allowedHeaders: "*"
+            allowCredentials: true
+            maxAge: 3600
+
+      routes:
+        # ── loopins-core ──────────────────────────────────────────────
+        # All /api/** traffic → loopins-core:8080
+        - id: loopins-core
+          uri: ${CORE_SERVICE_URL:http://localhost:8080}
+          predicates:
+            - Path=/api/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: core
+                fallbackUri: forward:/fallback/core
+
+        # ── loopins-fulfillment ───────────────────────────────────────
+        # All /fulfillment/** traffic → loopins-fulfillment:8081/api/**
+        - id: loopins-fulfillment
+          uri: ${FULFILLMENT_SERVICE_URL:http://localhost:8081}
+          predicates:
+            - Path=/fulfillment/**
+          filters:
+            - RewritePath=/fulfillment/(?<segment>.*), /api/${segment}
+            - name: CircuitBreaker
+              args:
+                name: fulfillment
+                fallbackUri: forward:/fallback/fulfillment
+
+server:
+  port: ${GATEWAY_PORT:8000}
+
+# Actuator
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway
+  endpoint:
+    health:
+      show-details: always
+    gateway:
+      enabled: true
+
+# Logging
+logging:
+  level:
+    org.springframework.cloud.gateway: INFO
+    com.loopins.gateway: DEBUG
+
+# Resilience4j circuit breakers for downstream services
+resilience4j:
+  circuitbreaker:
+    instances:
+      core:
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 30s
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+      fulfillment:
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 30s
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+  timelimiter:
+    instances:
+      core:
+        timeoutDuration: 15s
+      fulfillment:
+        timeoutDuration: 15s
