@@ -29,4 +29,13 @@ public class FallbackController {
                 "service", "loopins-fulfillment"
         ));
     }
+
+    @GetMapping("/minio")
+    public ResponseEntity<Map<String, Object>> minioFallback() {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of(
+                "success", false,
+                "message", "Media storage is temporarily unavailable. Please try again later.",
+                "service", "minio"
+        ));
+    }
 }

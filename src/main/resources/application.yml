@@ -46,6 +46,19 @@ spring:
                 name: fulfillment
                 fallbackUri: forward:/fallback/fulfillment
 
+        # ── MinIO (S3-compatible object storage) ─────────────────────
+        # /media/** → MinIO API on port 9000, strips /media prefix
+        - id: minio
+          uri: ${MINIO_URL:http://localhost:9000}
+          predicates:
+            - Path=/media/**
+          filters:
+            - RewritePath=/media/(?<segment>.*), /${segment}
+            - name: CircuitBreaker
+              args:
+                name: minio
+                fallbackUri: forward:/fallback/minio
+
 server:
   port: ${GATEWAY_PORT:8000}
 
@@ -85,9 +98,18 @@ resilience4j:
         waitDurationInOpenState: 30s
         permittedNumberOfCallsInHalfOpenState: 3
         automaticTransitionFromOpenToHalfOpenEnabled: true
+      minio:
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 30s
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
   timelimiter:
     instances:
       core:
         timeoutDuration: 15s
       fulfillment:
         timeoutDuration: 15s
+      minio:
+        timeoutDuration: 30s

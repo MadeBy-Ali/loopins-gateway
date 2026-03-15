@@ -1,0 +1,18 @@
+[Unit]
+Description=Loopins API Gateway
+After=network.target loopins-core.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/loopins
+EnvironmentFile=/opt/loopins/.env
+ExecStart=/usr/bin/java -jar /opt/loopins/loopins-gateway.jar
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=loopins-gateway
+
+[Install]
+WantedBy=multi-user.target
